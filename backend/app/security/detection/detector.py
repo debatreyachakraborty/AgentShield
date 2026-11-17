@@ -30,6 +30,29 @@ DETECTION_RULES = {
         "description": "Instruction override attempt",
         "weight": 0.5,
     },
+
+    
+    "RULE_004": {
+        "pattern": (
+            r"\b(?:disregard|override)\s+"
+            r"(?:all\s+|the\s+)?"
+            r"(?:earlier|previous|prior)\s+"
+            r"(?:instructions|directions|rules)\b"
+            r"|"
+            r"\bignore\s+"
+            r"(?:all\s+|the\s+)?"
+            r"(?:earlier|prior)\s+"
+            r"(?:instructions|directions|rules)\b"
+            r"|"
+            r"\bignore\s+"
+            r"(?:all\s+|the\s+)?previous\s+"
+            r"(?:directions|rules)\b"
+        ),
+        "description": "Reworded instruction override attempt",
+        "weight": 0.5,
+    },
+
+
     "RULE_002": {
         "pattern": r"\b(?:delete|remove|erase)\s+(?:the\s+)?file\b",
         "description": "Potentially destructive file operation",
