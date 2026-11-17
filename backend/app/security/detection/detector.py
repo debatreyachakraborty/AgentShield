@@ -4,6 +4,8 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
+from backend.app.security.detection.context_detector import assess_context
+
 
 class ThreatLevel(str, Enum):
     LOW = "low"
@@ -30,8 +32,6 @@ DETECTION_RULES = {
         "description": "Instruction override attempt",
         "weight": 0.5,
     },
-
-    
     "RULE_004": {
         "pattern": (
             r"\b(?:disregard|override)\s+"
@@ -51,7 +51,6 @@ DETECTION_RULES = {
         "description": "Reworded instruction override attempt",
         "weight": 0.5,
     },
-
     "RULE_005": {
         "pattern": (
             r"\b(?:forget|abandon|discard)\s+"
@@ -72,9 +71,6 @@ DETECTION_RULES = {
         "description": "Authority or role spoofing attempt",
         "weight": 0.5,
     },
-
-
-
     "RULE_002": {
         "pattern": r"\b(?:delete|remove|erase)\s+(?:the\s+)?file\b",
         "description": "Potentially destructive file operation",
@@ -93,8 +89,9 @@ def assess_threat(content: str) -> ThreatAssessment:
         raise TypeError("Message content must be a string.")
 
     findings = []
-    score = 0.0
+    regex_score = 0.0
 
+    # Layer 1: Existing regex-based detection.
     for rule_id, rule in DETECTION_RULES.items():
         match = re.search(
             rule["pattern"],
@@ -110,20 +107,41 @@ def assess_threat(content: str) -> ThreatAssessment:
                     matched_text=match.group(),
                 )
             )
-            score += rule["weight"]
+            regex_score += rule["weight"]
 
-    score = min(round(score, 2), 1.0)
+    regex_score = min(round(regex_score, 2), 1.0)
 
-    if score >= 0.7:
+    # Layer 2: Context-aware heuristic detection.
+    context_result = assess_context(content)
+
+    for category in context_result.findings:
+        findings.append(
+            ThreatFinding(
+                rule_id=f"CONTEXT_{category.upper()}",
+                description=f"Context indicator: {category}",
+                matched_text=category,
+            )
+        )
+
+    # Layer 3: Combine detector outputs.
+    # This score is a heuristic, not a probability.
+    combined_score = max(
+        regex_score,
+        context_result.risk_score,
+    )
+
+    suspicious = bool(findings)
+
+    if combined_score >= 0.7:
         level = ThreatLevel.HIGH
-    elif score >= 0.3:
+    elif combined_score >= 0.3:
         level = ThreatLevel.MEDIUM
     else:
         level = ThreatLevel.LOW
 
     return ThreatAssessment(
-        suspicious=bool(findings),
+        suspicious=suspicious,
         threat_level=level,
-        risk_score=score,
+        risk_score=combined_score,
         findings=findings,
     )

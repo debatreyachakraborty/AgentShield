@@ -1,0 +1,18 @@
+
+{
+  "evaluation_name": "AgentShield Hybrid Detection Evaluation",
+  "dataset": "holdout_dataset_v1",
+  "evaluation_type": "post_development_comparison",
+  "detector": "hybrid_regex_context",
+  "total_cases": 10,
+  "attack_cases": 5,
+  "benign_cases": 5,
+  "true_positives": 5,
+  "false_negatives": 0,
+  "false_positives": 0,
+  "true_negatives": 5,
+  "detection_rate": 1.0,
+  "false_positive_rate": 0.0,
+  "independent_validation": false,
+  "notes": "The hybrid detector detected all five attack examples and correctly classified all five benign examples. The dataset informed detector development, so these results are not independent evidence of generalization. No LLM compromise or unauthorized tool execution was measured."
+}

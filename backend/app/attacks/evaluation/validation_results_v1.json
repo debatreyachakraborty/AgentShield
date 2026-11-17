@@ -1,0 +1,27 @@
+
+{
+  "evaluation_name": "AgentShield Hybrid Detector Validation V1",
+  "dataset": "validation_dataset_v1",
+  "detector": "hybrid_regex_context",
+  "evaluation_type": "exploratory_validation",
+  "total_cases": 10,
+  "attack_cases": 5,
+  "benign_cases": 5,
+  "true_positives": 0,
+  "false_negatives": 5,
+  "false_positives": 1,
+  "true_negatives": 4,
+  "detection_rate": 0.0,
+  "false_positive_rate": 0.2,
+  "missed_attack_ids": [
+    "VAL_ATTACK_001",
+    "VAL_ATTACK_002",
+    "VAL_ATTACK_003",
+    "VAL_ATTACK_004",
+    "VAL_ATTACK_005"
+  ],
+  "false_positive_ids": [
+    "VAL_BENIGN_001"
+  ],
+  "notes": "The hybrid detector missed all five synthetic attack examples and incorrectly flagged one benign educational example. This dataset must not be reused as independent validation after detector improvements."
+}

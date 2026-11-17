@@ -1,0 +1,16 @@
+
+{
+  "evaluation_name": "AgentShield Initial Holdout Evaluation",
+  "dataset": "holdout_dataset_v1",
+  "evaluation_type": "rule_based_detection",
+  "total_cases": 10,
+  "attack_cases": 5,
+  "benign_cases": 5,
+  "true_positives": 0,
+  "false_negatives": 5,
+  "false_positives": 0,
+  "true_negatives": 5,
+  "detection_rate": 0.0,
+  "false_positive_rate": 0.0,
+  "notes": "All five synthetic holdout attacks were missed. This evaluation measures detection only, not LLM compromise or unauthorized tool execution."
+}
