@@ -52,6 +52,28 @@ DETECTION_RULES = {
         "weight": 0.5,
     },
 
+    "RULE_005": {
+        "pattern": (
+            r"\b(?:forget|abandon|discard)\s+"
+            r"(?:your\s+|the\s+)?"
+            r"(?:original|current|assigned)\s+"
+            r"(?:task|instructions|objective)\b"
+        ),
+        "description": "Task abandonment instruction attempt",
+        "weight": 0.5,
+    },
+    "RULE_006": {
+        "pattern": (
+            r"\b(?:pretend|act\s+as\s+if)\s+"
+            r"you\s+are\s+"
+            r"(?:the\s+|an?\s+)?"
+            r"(?:system\s+administrator|admin|developer)\b"
+        ),
+        "description": "Authority or role spoofing attempt",
+        "weight": 0.5,
+    },
+
+
 
     "RULE_002": {
         "pattern": r"\b(?:delete|remove|erase)\s+(?:the\s+)?file\b",
