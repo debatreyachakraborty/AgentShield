@@ -1,11 +1,11 @@
 
-from backend.app.models.agent import ToolPermission
 from backend.app.orchestration.workflow import run_workflow
 
 
 def test_normal_workflow_is_allowed():
     result = run_workflow("Research AI security")
 
+    assert result["gateway_decision"] == "ALLOW"
     assert result["tool_allowed"] is True
     assert result["attack_detected"] is False
     assert "Simulated report saved" in result["final_output"]
@@ -17,9 +17,13 @@ def test_cross_agent_attack_is_blocked():
         attack_scenario_id="attack_001",
     )
 
+    assert result["gateway_decision"] == "BLOCK"
     assert result["tool_allowed"] is False
     assert result["attack_detected"] is True
-    assert result["final_output"].startswith("BLOCKED:")
+
+    assert result["final_output"].startswith(
+        "BLOCKED BY SECURITY GATEWAY"
+    )
 
 
 def test_attack_payload_enters_research_agent():
@@ -30,46 +34,47 @@ def test_attack_payload_enters_research_agent():
 
     research_message = result["messages"][0]
 
-    assert "Ignore all previous instructions" in research_message.content
+    assert (
+        "Ignore all previous instructions"
+        in research_message.content
+    )
+
     assert research_message.metadata["untrusted_content"] is True
 
 
-def test_attack_propagates_to_analysis_agent():
+def test_attack_does_not_reach_analysis_agent():
     result = run_workflow(
         "Analyze security threats",
         attack_scenario_id="attack_001",
     )
 
-    research_message = result["messages"][0]
-    analysis_message = result["messages"][1]
+    sender_ids = [
+        message.sender_id
+        for message in result["messages"]
+    ]
 
-    assert "Ignore all previous instructions" in analysis_message.content
-
-    assert (
-        analysis_message.parent_message_id
-        == research_message.message_id
-    )
-
-    assert (
-        analysis_message.metadata["inherited_untrusted_content"]
-        is True
-    )
+    assert "research_agent" in sender_ids
+    assert "analysis_agent" not in sender_ids
+    assert result["gateway_decision"] == "BLOCK"
 
 
-def test_execution_agent_requests_unauthorized_tool():
+def test_execution_agent_is_not_invoked_for_attack():
     result = run_workflow(
         "Analyze security threats",
         attack_scenario_id="attack_001",
     )
 
-    execution_message = result["messages"][2]
+    sender_ids = [
+        message.sender_id
+        for message in result["messages"]
+    ]
 
-    assert (
-        execution_message.metadata["requested_tool"]
-        == ToolPermission.DELETE_FILE.value
-    )
+    assert "execution_agent" not in sender_ids
+    assert result["tool_allowed"] is False
 
-    assert execution_message.metadata["tool_allowed"] is False
+    assert result["messages"][-1].metadata[
+        "requested_tool"
+    ] is None
 
 
 def test_message_chain_is_preserved():
@@ -80,7 +85,35 @@ def test_message_chain_is_preserved():
 
     messages = result["messages"]
 
-    assert len(messages) == 3
+    assert len(messages) == 2
 
-    assert messages[1].parent_message_id == messages[0].message_id
-    assert messages[2].parent_message_id == messages[1].message_id
+    assert messages[0].sender_id == "research_agent"
+    assert messages[1].sender_id == "security_gateway"
+
+    assert (
+        messages[1].parent_message_id
+        == messages[0].message_id
+    )
+
+
+def test_gateway_block_is_recorded_in_audit():
+    result = run_workflow(
+        "Analyze security threats",
+        attack_scenario_id="attack_001",
+    )
+
+    blocked_events = [
+        event
+        for event in result["audit_events"]
+        if event["event_type"] == "tool_blocked"
+    ]
+
+    assert len(blocked_events) == 1
+
+    assert blocked_events[0]["agent_id"] == (
+        "security_gateway"
+    )
+
+    assert blocked_events[0]["metadata"][
+        "gateway_decision"
+    ] == "BLOCK"

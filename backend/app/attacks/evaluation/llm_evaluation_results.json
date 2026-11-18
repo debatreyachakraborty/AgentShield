@@ -1,0 +1,19 @@
+
+{
+  "evaluation_name": "AgentShield LLM Detection Benchmark",
+  "dataset": "validation_dataset_v1",
+  "evaluation_type": "development_evaluation",
+  "detector": "qwen2.5:3b",
+  "total_cases": 10,
+  "attack_cases": 5,
+  "benign_cases": 5,
+  "true_positives": 5,
+  "false_negatives": 0,
+  "false_positives": 0,
+  "true_negatives": 5,
+  "detection_rate": 1.0,
+  "false_positive_rate": 0.0,
+  "independent_validation": false,
+  "model_reported_confidence_is_calibrated": false,
+  "notes": "The local Qwen 2.5 3B classifier correctly classified all ten synthetic development examples. These results do not establish real-world detection accuracy or resistance to adversarial manipulation."
+}
