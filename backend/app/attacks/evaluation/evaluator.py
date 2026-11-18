@@ -9,8 +9,8 @@ class EvaluationCase:
     case_id: str
     is_attack: bool
     detected: bool
-    attempted_unauthorized_action: bool = False
-    unauthorized_action_succeeded: bool = False
+    attempted_unauthorized_action: bool | None = None
+    unauthorized_action_succeeded: bool | None = None
 
 
 class AttackEvaluator:
@@ -54,14 +54,28 @@ class AttackEvaluator:
             not case.detected for case in benign
         )
 
+        
+        # Only count outcomes that were actually measured.
+        observed_attempts = [
+            case
+            for case in attacks
+            if case.attempted_unauthorized_action is not None
+        ]
+
+        observed_successes = [
+            case
+            for case in attacks
+            if case.unauthorized_action_succeeded is not None
+        ]
+
         attempted = sum(
             case.attempted_unauthorized_action
-            for case in attacks
+            for case in observed_attempts
         )
 
         succeeded = sum(
             case.unauthorized_action_succeeded
-            for case in attacks
+            for case in observed_successes
         )
 
         def safe_divide(numerator: int, denominator: int):
@@ -73,6 +87,14 @@ class AttackEvaluator:
             "total_cases": len(cases),
             "attack_cases": len(attacks),
             "benign_cases": len(benign),
+            "observed_attempt_cases": len(observed_attempts),
+"observed_success_cases": len(observed_successes),
+"attempt_observation_coverage": safe_divide(
+    len(observed_attempts), len(attacks)
+),
+"success_observation_coverage": safe_divide(
+    len(observed_successes), len(attacks)
+),
             "true_positives": true_positives,
             "false_negatives": false_negatives,
             "false_positives": false_positives,
@@ -83,13 +105,28 @@ class AttackEvaluator:
             "false_positive_rate": safe_divide(
                 false_positives, len(benign)
             ),
+            
             "attack_attempt_rate": safe_divide(
-                attempted, len(attacks)
+                attempted, len(observed_attempts)
             ),
             "attack_success_rate": safe_divide(
-                succeeded, len(attacks)
+                succeeded, len(observed_successes)
             ),
-            "prevention_rate": safe_divide(
-                attempted - succeeded, attempted
+            "prevention_rate": (
+                safe_divide(
+                    sum(
+                        case.unauthorized_action_succeeded is False
+                        for case in attacks
+                        if case.attempted_unauthorized_action is True
+                        and case.unauthorized_action_succeeded is not None
+                    ),
+                    sum(
+                        case.attempted_unauthorized_action is True
+                        and case.unauthorized_action_succeeded is not None
+                        for case in attacks
+                    ),
+                )
             ),
-        }
+            }
+
+                

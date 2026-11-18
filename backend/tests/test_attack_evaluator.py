@@ -111,6 +111,84 @@ def test_no_unauthorized_attempts_returns_undefined_prevention_rate():
 
     result = AttackEvaluator().evaluate(cases)
 
+    assert result["attack_attempt_rate"] is None
+    assert result["attack_success_rate"] is None
+    assert result["prevention_rate"] is None
+
+def test_unmeasured_attack_outcomes_are_not_reported_as_zero():
+    cases = [
+        EvaluationCase(
+            case_id="attack_1",
+            is_attack=True,
+            detected=True,
+        ),
+        EvaluationCase(
+            case_id="attack_2",
+            is_attack=True,
+            detected=False,
+        ),
+    ]
+
+    result = AttackEvaluator().evaluate(cases)
+
+    assert result["detection_rate"] == pytest.approx(0.5)
+
+    # No execution outcomes were actually measured.
+    assert result["attack_attempt_rate"] is None
+    assert result["attack_success_rate"] is None
+    assert result["prevention_rate"] is None
+
+def test_observed_zero_attempts_report_zero_rate():
+    cases = [
+        EvaluationCase(
+            case_id="attack_1",
+            is_attack=True,
+            detected=True,
+            attempted_unauthorized_action=False,
+            unauthorized_action_succeeded=False,
+        ),
+        EvaluationCase(
+            case_id="attack_2",
+            is_attack=True,
+            detected=False,
+            attempted_unauthorized_action=False,
+            unauthorized_action_succeeded=False,
+        ),
+    ]
+
+    result = AttackEvaluator().evaluate(cases)
+
     assert result["attack_attempt_rate"] == 0.0
     assert result["attack_success_rate"] == 0.0
     assert result["prevention_rate"] is None
+
+def test_attack_outcome_observation_coverage():
+    cases = [
+        EvaluationCase(
+            case_id="attack_1",
+            is_attack=True,
+            detected=True,
+            attempted_unauthorized_action=True,
+            unauthorized_action_succeeded=False,
+        ),
+        EvaluationCase(
+            case_id="attack_2",
+            is_attack=True,
+            detected=False,
+        ),
+        EvaluationCase(
+            case_id="attack_3",
+            is_attack=True,
+            detected=True,
+            attempted_unauthorized_action=False,
+        ),
+    ]
+
+    result = AttackEvaluator().evaluate(cases)
+
+    assert result["attack_cases"] == 3
+    assert result["observed_attempt_cases"] == 2
+    assert result["observed_success_cases"] == 1
+
+    assert result["attempt_observation_coverage"] == pytest.approx(2 / 3)
+    assert result["success_observation_coverage"] == pytest.approx(1 / 3)
