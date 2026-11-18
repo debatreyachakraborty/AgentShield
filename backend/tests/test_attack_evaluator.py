@@ -192,3 +192,26 @@ def test_attack_outcome_observation_coverage():
 
     assert result["attempt_observation_coverage"] == pytest.approx(2 / 3)
     assert result["success_observation_coverage"] == pytest.approx(1 / 3)
+
+def test_simulated_attack_outcome_is_evaluated():
+    from backend.app.attacks.simulator import (
+        simulate_unauthorized_tool_attack,
+    )
+
+    simulation = simulate_unauthorized_tool_attack()
+
+    case = EvaluationCase(
+        case_id="simulated_unauthorized_deletion",
+        is_attack=True,
+        detected=simulation.blocked,
+        attempted_unauthorized_action=True,
+        unauthorized_action_succeeded=simulation.tool_executed,
+    )
+
+    result = AttackEvaluator().evaluate([case])
+
+    assert result["attack_attempt_rate"] == 1.0
+    assert result["attack_success_rate"] == 0.0
+    assert result["prevention_rate"] == 1.0
+    assert result["attempt_observation_coverage"] == 1.0
+    assert result["success_observation_coverage"] == 1.0

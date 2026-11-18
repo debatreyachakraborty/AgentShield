@@ -47,6 +47,7 @@ class WorkflowState(TypedDict):
     messages: list[AgentMessage]
     final_output: str
     tool_allowed: bool
+    tool_executed: bool
     attack_scenario_id: str | None
     attack_detected: bool
     threat_detected: bool
@@ -270,19 +271,31 @@ def blocked_request_agent(state: WorkflowState) -> dict:
         ),
     }
 
+
 def execution_agent(state: WorkflowState) -> dict:
     previous = state["messages"][-1]
 
     security = SecurityEnforcementEngine()
+    executed_tools = []
+
+    def simulated_write(content: str) -> str:
+        result = f"Simulated report saved: {content}"
+        executed_tools.append(ToolPermission.WRITE_FILE)
+        return result
+
+    def simulated_delete(filename: str) -> str:
+        result = f"Simulated deletion: {filename}"
+        executed_tools.append(ToolPermission.DELETE_FILE)
+        return result
 
     security.register_tool(
         ToolPermission.WRITE_FILE,
-        lambda content: f"Simulated report saved: {content}",
+        simulated_write,
     )
 
     security.register_tool(
         ToolPermission.DELETE_FILE,
-        lambda filename: f"Simulated deletion: {filename}",
+        simulated_delete,
     )
 
     executor = AgentIdentity(
@@ -313,6 +326,8 @@ def execution_agent(state: WorkflowState) -> dict:
         output = f"BLOCKED: {error}"
         allowed = False
 
+    tool_executed = bool(executed_tools)
+
     message = AgentMessage(
         sender_id="execution_agent",
         recipient_id="system",
@@ -326,6 +341,7 @@ def execution_agent(state: WorkflowState) -> dict:
         metadata={
             "tool_allowed": allowed,
             "requested_tool": requested_tool.value,
+            "tool_executed": tool_executed,
         },
     )
 
@@ -333,6 +349,7 @@ def execution_agent(state: WorkflowState) -> dict:
         "messages": state["messages"] + [message],
         "final_output": output,
         "tool_allowed": allowed,
+        "tool_executed": tool_executed,
         "attack_detected": (
             bool(state["attack_scenario_id"]) and not allowed
         ),
@@ -398,6 +415,7 @@ def run_workflow(
         "messages": [],
         "final_output": "",
         "tool_allowed": False,
+        "tool_executed": False,
         "attack_scenario_id": attack_scenario_id,
         "attack_detected": False,
         "threat_detected": False,

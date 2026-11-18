@@ -176,3 +176,46 @@ def test_review_prevents_execution_and_is_audited(
     assert blocked_events[0]["metadata"]["gateway_decision"] == "REVIEW"
     assert blocked_events[0]["metadata"]["block_source"] == "security_gateway"
 
+
+def test_permission_engine_blocks_attack_when_gateway_allows():
+    from backend.app.security.hybrid_gateway import SecurityDecision
+
+    with patch(
+        "backend.app.orchestration.workflow.OllamaClient.generate",
+        new=fake_generate,
+    ), patch(
+        "backend.app.orchestration.workflow.HybridSecurityGateway"
+    ) as mock_gateway:
+
+        mock_gateway.return_value.evaluate.return_value = (
+            SimpleNamespace(
+                decision=SecurityDecision.ALLOW,
+                reason="Simulated false negative.",
+            )
+        )
+
+        result = run_workflow(
+            "Research AI security",
+            attack_scenario_id="attack_001",
+            use_llm=True,
+        )
+
+    assert result["gateway_decision"] == "ALLOW"
+    assert result["tool_allowed"] is False
+    assert result["final_output"].startswith("BLOCKED:")
+
+    assert any(
+        message.sender_id == "execution_agent"
+        for message in result["messages"]
+    )
+
+    blocked_events = [
+        event
+        for event in result["audit_events"]
+        if event["event_type"] == "tool_blocked"
+    ]
+
+    assert len(blocked_events) == 1
+    assert blocked_events[0]["metadata"]["block_source"] == (
+        "permission_engine"
+    )

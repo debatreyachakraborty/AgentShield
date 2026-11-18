@@ -100,3 +100,18 @@ def test_safe_content_reaches_execution():
     ]
 
     assert result["tool_allowed"] is True
+
+def test_normal_workflow_records_tool_execution():
+    result = run_workflow("Research AI security")
+
+    assert result["tool_allowed"] is True
+    assert result["tool_executed"] is True
+
+def test_blocked_attack_records_no_tool_execution():
+    result = run_workflow(
+        "Research AI security",
+        attack_scenario_id="attack_001",
+    )
+
+    assert result["tool_allowed"] is False
+    assert result["tool_executed"] is False
