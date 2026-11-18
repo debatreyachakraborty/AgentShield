@@ -1,4 +1,6 @@
 
+from unittest.mock import patch
+
 from backend.app.security.hybrid_gateway import (
     HybridSecurityGateway,
     SecurityDecision,
@@ -164,7 +166,10 @@ def security_gateway_agent(state: WorkflowState) -> dict:
     return {
         "gateway_decision": decision.value,
         "gateway_reason": reason,
-        "threat_detected": decision == SecurityDecision.BLOCK,
+        "threat_detected": decision in (
+    SecurityDecision.BLOCK,
+    SecurityDecision.REVIEW,
+),
         "threat_score": threat_score,
     }
 
@@ -449,9 +454,10 @@ def run_workflow(
     gateway_decision = result.get("gateway_decision", "")
 
     if gateway_decision in (
-        SecurityDecision.BLOCK.value,
-        SecurityDecision.ERROR.value,
-    ):
+    SecurityDecision.BLOCK.value,
+    SecurityDecision.REVIEW.value,
+    SecurityDecision.ERROR.value,
+):
         audit_logger.log_event(
             session_id=result["session_id"],
             event_type=AuditEventType.TOOL_BLOCKED,
@@ -490,5 +496,4 @@ def run_workflow(
         )
 
     result["audit_events"] = audit_logger.export_events()
-
     return result

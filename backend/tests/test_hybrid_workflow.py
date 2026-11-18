@@ -116,3 +116,63 @@ def test_hybrid_gateway_block_is_audited(mock_assess):
     assert blocked_events[0]["metadata"][
         "gateway_decision"
     ] == "BLOCK"
+
+@patch(
+    "backend.app.orchestration.workflow.OllamaClient.generate",
+    new=fake_generate,
+)
+@patch(
+    "backend.app.security.hybrid_gateway.LLMThreatDetector.assess"
+)
+@patch(
+    "backend.app.orchestration.workflow.assess_threat"
+)
+@patch(
+    "backend.app.security.hybrid_gateway.assess_threat"
+)
+def test_review_prevents_execution_and_is_audited(
+    mock_gateway_threat,
+    mock_workflow_threat,
+    mock_llm_assess,
+):
+    mock_gateway_threat.return_value = SimpleNamespace(
+        suspicious=True,
+        risk_score=0.8,
+    )
+
+    mock_workflow_threat.return_value = SimpleNamespace(
+        suspicious=False,
+        risk_score=0.0,
+    )
+
+    mock_llm_assess.return_value = fake_assessment(False)
+
+    result = run_workflow(
+        "Summarize artificial intelligence research",
+        use_llm=True,
+    )
+
+    assert result["gateway_decision"] == "REVIEW"
+    assert result["tool_allowed"] is False
+    assert result["threat_detected"] is True
+
+    assert all(
+        message.sender_id not in (
+            "analysis_agent",
+            "execution_agent",
+        )
+        for message in result["messages"]
+    )
+
+    assert result["messages"][-1].sender_id == "security_gateway"
+
+    blocked_events = [
+        event
+        for event in result["audit_events"]
+        if event["event_type"] == "tool_blocked"
+    ]
+
+    assert len(blocked_events) == 1
+    assert blocked_events[0]["metadata"]["gateway_decision"] == "REVIEW"
+    assert blocked_events[0]["metadata"]["block_source"] == "security_gateway"
+

@@ -9,6 +9,7 @@ from backend.app.security.detection.llm_detector import LLMThreatDetector
 class SecurityDecision(str, Enum):
     ALLOW = "ALLOW"
     BLOCK = "BLOCK"
+    REVIEW = "REVIEW"
     ERROR = "ERROR"
 
 
@@ -37,15 +38,18 @@ class HybridSecurityGateway:
                 llm_detected=None,
             )
 
-        # Layer 1: Rule-based and contextual heuristics.
+        # Layer 1: Deterministic detection.
         rule_result = assess_threat(content)
 
         # Layer 2: LLM classification.
         try:
             llm_result = self.llm_detector.assess(content)
+            if not isinstance(llm_result.suspicious, bool):
+                raise TypeError(
+                    "LLM suspicious result must be boolean."
+                )
         except Exception:
-            # Fail closed: an unavailable or invalid classifier
-            # must not cause content to be allowed.
+            # Fail closed if LLM classification fails.
             return GatewayResult(
                 decision=SecurityDecision.ERROR,
                 reason="LLM security classification failed.",
@@ -53,13 +57,35 @@ class HybridSecurityGateway:
                 llm_detected=None,
             )
 
-        # Conservative OR policy: either detector can block.
-        if rule_result.suspicious or llm_result.suspicious:
+        rule_detected = rule_result.suspicious
+        llm_detected = llm_result.suspicious
+
+        # Both detectors identify suspicious content.
+        if rule_detected and llm_detected:
             return GatewayResult(
                 decision=SecurityDecision.BLOCK,
-                reason="Potential prompt injection detected.",
-                rule_detected=rule_result.suspicious,
-                llm_detected=llm_result.suspicious,
+                reason="Both security detectors flagged the content.",
+                rule_detected=True,
+                llm_detected=True,
+            )
+
+        # LLM identifies an attack missed by deterministic rules.
+        if llm_detected:
+            return GatewayResult(
+                decision=SecurityDecision.BLOCK,
+                reason="LLM security detector flagged the content.",
+                rule_detected=False,
+                llm_detected=True,
+            )
+
+        # Deterministic detector flags content but LLM disagrees.
+        # REVIEW must never authorize execution.
+        if rule_detected:
+            return GatewayResult(
+                decision=SecurityDecision.REVIEW,
+                reason="Security detectors disagree; manual review required.",
+                rule_detected=True,
+                llm_detected=False,
             )
 
         return GatewayResult(
