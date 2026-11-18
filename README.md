@@ -84,6 +84,14 @@ The tests cover workflow behavior, security enforcement, attack simulation, dete
 
 ## 3. System Architecture
 
+### Detailed Architecture Diagrams
+
+For a visual explanation of the multi-agent workflow, hybrid security gateway, runtime tool authorization, and audit logging, see:
+
+**[View AgentShield Architecture Diagrams](docs/architecture.md)**
+
+
+
 ```text
                   USER TASK
                       |
